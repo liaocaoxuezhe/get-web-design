@@ -34,6 +34,16 @@
 curl -fsSL https://raw.githubusercontent.com/liaocaoxuezhe/get-web-design/main/install.sh | bash
 ```
 
+### 通过 npx skills 安装（推荐）
+
+如果你已经安装了 [`skill.sh`](https://skill.sh) 生态，可以直接用以下命令安装：
+
+```bash
+npx skills add liaocaoxuezhe/get-web-design
+```
+
+安装完成后，skill 会自动注入到当前 AI Agent 的 context 中，无需手动复制文件。
+
 ### 指定平台安装
 
 ```bash
