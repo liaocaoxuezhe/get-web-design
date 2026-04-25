@@ -1,0 +1,23 @@
+name: get-web-design
+version: 1.0.0
+description: "Extract a complete DESIGN.md style guide from any live website URL. Captures screenshots, samples DOM/computed CSS via chrome-devtools, uses a multimodal LLM for visual style analysis, and merges everything into a single structured DESIGN.md."
+author: liaocaoxuezhe
+license: MIT
+tags: [design, frontend, css, ai-agent, web-scraping]
+
+# skill.sh 安装时会把哪些文件注入到 agent context
+context_files:
+  - SKILL.md
+  - assets/core_principles.md
+  - assets/design_thinking.md
+  - assets/system_prompt_en.txt
+  - assets/system_prompt_zh.txt
+  - references/setup.md
+  - references/workflow.md
+  - references/chrome_devtools_recipes.md
+
+# 随 skill 一起安装的可执行脚本
+scripts:
+  - scripts/generate_design_md.py
+  - scripts/css_evidence.py
+  - assets/collect_design_data.js
