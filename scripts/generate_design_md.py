@@ -61,9 +61,16 @@ def encode_image_to_data_url(path: Path) -> str:
 
 def strip_markdown_fence(text: str) -> str:
     text = (text or "").strip()
-    text = re.sub(r"^```(?:markdown)?\s*", "", text, flags=re.IGNORECASE)
-    text = re.sub(r"\s*```$", "", text, flags=re.IGNORECASE)
-    return text.strip()
+    outer_fence = re.fullmatch(r"```(?:markdown)?\s*\n([\s\S]*?)\n```", text, flags=re.IGNORECASE)
+    return outer_fence.group(1).strip() if outer_fence else text
+
+
+def close_unbalanced_markdown_fences(text: str) -> str:
+    text = (text or "").strip()
+    if not text:
+        return ""
+    fence_count = sum(1 for line in text.splitlines() if re.match(r"^\s*```", line))
+    return f"{text}\n```" if fence_count % 2 == 1 else text
 
 
 def build_frontmatter(hostname: str) -> str:
@@ -92,21 +99,30 @@ def build_messages(collected: dict, screenshots: list[Path], language: str) -> l
         user_intro = (
             f"网站：{hostname}\n"
             f"页面标题：{title}\n\n"
-            f"下面是 DOM 文本与页面结构快照。请结合后续截图分析网站风格，但不要分析 CSS 原始数据：\n"
+            f"下面是 DOM 文本与页面结构快照。请结合后续截图分析网站风格，但不要分析 CSS 原始数据。\n"
+            f"其中 distinctiveCandidates 是从真实 DOM 中挑出的特殊模块候选，请重点参考它们来生成“特殊元素 Few-shot 复刻样例”：\n"
             f"{json.dumps({'meta': meta, 'domSnapshot': dom_snapshot}, ensure_ascii=False, indent=2)}"
         )
-        trailing = "请只输出风格分析 markdown，不要包含 frontmatter、固定文本、CSS Evidence 或下载说明。"
+        trailing = (
+            "请只输出风格分析 markdown，不要包含 frontmatter、固定文本、CSS Evidence 或下载说明。"
+            "必须包含“特殊元素 Few-shot 复刻样例”章节，并为 3-6 个真实页面元素写出用途、"
+            "识别依据、视觉规则、复刻提示词和结构草图。"
+        )
     else:
         system_prompt = read_text(ASSETS / "system_prompt_en.txt")
         user_intro = (
             f"Website: {hostname}\n"
             f"Page title: {title}\n\n"
-            f"Here is a DOM text and structure snapshot. Analyze the site style with the screenshots below, but do not analyze raw CSS:\n"
+            f"Here is a DOM text and structure snapshot. Analyze the site style with the screenshots below, but do not analyze raw CSS.\n"
+            f'The distinctiveCandidates field contains real DOM-derived module candidates. Use it heavily when writing "Distinctive Element Few-shot Examples":\n'
             f"{json.dumps({'meta': meta, 'domSnapshot': dom_snapshot}, ensure_ascii=False, indent=2)}"
         )
         trailing = (
             "Output only the style analysis markdown. Do not include frontmatter, "
-            "fixed copy, CSS Evidence, or download instructions."
+            "fixed copy, CSS Evidence, or download instructions. You must include "
+            '"Distinctive Element Few-shot Examples" with 3-6 real page elements, '
+            "each containing purpose, evidence, visual rules, recreation prompt, "
+            "and structure sketch."
         )
 
     user_content: list = [{"type": "text", "text": user_intro}]
@@ -171,10 +187,11 @@ def call_llm(messages: list, *, api_key: str, base_url: str, model: str, timeout
 def assemble_design_md(
     *, hostname: str, ai_analysis: str, css_evidence_md: str
 ) -> str:
+    safe_ai_analysis = close_unbalanced_markdown_fences(strip_markdown_fence(ai_analysis))
     parts = [
         build_frontmatter(hostname),
         read_text(ASSETS / "design_thinking.md"),
-        strip_markdown_fence(ai_analysis),
+        safe_ai_analysis,
         (css_evidence_md or "").strip(),
         read_text(ASSETS / "core_principles.md"),
     ]

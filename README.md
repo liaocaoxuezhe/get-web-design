@@ -7,6 +7,7 @@
 - 从任意 URL 生成可用于 AI 编程提示词的 `DESIGN.md`
 - 提取站点的设计 token（颜色 / 字体 / 间距 / 圆角 / 阴影 / 动效）
 - 使用多模态 LLM 分析站点的视觉风格、组件规范与整体氛围
+- 识别网页中特别值得复刻的主要元素，并输出 few-shot 模块规范
 - 通过 chrome-devtools MCP 采集 DOM、Computed CSS 与 3 视口截图
 - 输出包含 frontmatter + design thinking + AI 风格分析 + CSS 证据 + negative constraints 的完整文档
 

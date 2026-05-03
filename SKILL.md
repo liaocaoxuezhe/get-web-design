@@ -14,6 +14,7 @@ description: This skill should be used when the user wants to extract a complete
 - 从一个 URL 生成一份可用于 AI 编程提示词的 `DESIGN.md`
 - 提取某站点的设计 token（颜色 / 字体 / 间距 / 圆角 / 阴影 / 动效 token）
 - 让 AI 描述某站点的视觉风格、组件规范、整体氛围
+- 识别网页里最值得复刻的特殊元素，并输出 few-shot 模块规范
 
 典型触发语句：
 - "生成 https://stripe.com 的 DESIGN.md"
@@ -89,6 +90,7 @@ frontmatter (hostname / version / last_updated)
 打开 `./<hostname>_design.md`，确认：
 - 顶部有 `---` frontmatter；
 - 包含 `# Design Thinking`、`# Overall Atmosphere`、`## Engineering CSS Evidence`、`## Core Principles` 四个段落；
+- 包含 `## Distinctive Element Few-shot Examples`，并为真实页面元素给出 purpose / evidence / visual rules / recreation prompt / structure sketch；
 - `## Engineering CSS Evidence` 下的 token 不全是 "Not enough evidence"；
 - 全文无中文（frontmatter 及 AI 分析段落均应为英文）。
 
@@ -116,6 +118,7 @@ mcp__chrome-devtools__close_page({ pageIdx })
 ## 重要约束
 
 - **不要在 LLM prompt 中加入 CSS 数据。** 原始 CSS 由 Python 单独压缩；prompt 中只提供 DOM 文本+截图。这是为了防止模型编造 CSS 细节。
+- **特殊元素 few-shot 必须来自真实证据。** `domSnapshot.distinctiveCandidates` 会提供候选模块，但最终仍需结合截图判断，不要为不存在的页面元素编造模块。
 - **拼装顺序固定。** frontmatter → design_thinking → AI 分析 → CSS Evidence → core_principles。任何重排都会破坏下游使用本 DESIGN.md 的提示词链。
 - **3 张截图是上限。** 由 Chrome 速率限制决定；不要尝试加到 5 张以上。
 - **模型必须支持 vision。** 用纯文本模型会得到无视觉 grounding 的低质量结果。

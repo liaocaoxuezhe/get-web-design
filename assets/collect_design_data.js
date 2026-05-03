@@ -50,6 +50,32 @@ function collectDomSnapshot() {
     '[class*="button" i]',
     '[data-testid*="button" i]',
   ].join(',');
+  const distinctiveSelector = [
+    'header',
+    'nav',
+    'main > section',
+    'section',
+    'article',
+    'form',
+    'table',
+    '[role="banner"]',
+    '[role="navigation"]',
+    '[role="main"]',
+    '[role="region"]',
+    '[class*="hero" i]',
+    '[class*="feature" i]',
+    '[class*="pricing" i]',
+    '[class*="plan" i]',
+    '[class*="card" i]',
+    '[class*="panel" i]',
+    '[class*="grid" i]',
+    '[class*="gallery" i]',
+    '[class*="testimonial" i]',
+    '[class*="metric" i]',
+    '[class*="stats" i]',
+    '[class*="badge" i]',
+    '[class*="marquee" i]',
+  ].join(',');
 
   const headings = Array.from(document.querySelectorAll('h1,h2,h3,h4,h5,h6'))
     .filter(isVisibleForEvidence)
@@ -89,11 +115,14 @@ function collectDomSnapshot() {
       text: textOf(el, 180),
     }));
 
+  const distinctiveCandidates = collectDistinctiveCandidates(distinctiveSelector, textOf);
+
   return {
     headings,
     navigation,
     ctas,
     landmarks,
+    distinctiveCandidates,
     bodyTextSample: allText,
     counts: {
       forms: document.querySelectorAll('form').length,
@@ -108,6 +137,88 @@ function collectDomSnapshot() {
       ).length,
     },
   };
+}
+
+function collectDistinctiveCandidates(selector, textOf) {
+  const seen = new Set();
+  const viewportHeight = Math.max(window.innerHeight || 0, 1);
+
+  return Array.from(document.querySelectorAll(selector))
+    .filter((el) => {
+      if (!isVisibleForEvidence(el) || seen.has(el)) return false;
+      seen.add(el);
+      const rect = el.getBoundingClientRect();
+      const text = textOf(el, 220);
+      const marker = `${stringifyClassName(el.className)} ${el.id || ''}`.toLowerCase();
+      const hasDesignMarker = /(hero|feature|pricing|plan|card|panel|grid|gallery|testimonial|metric|stats|badge|marquee|cta|banner)/i.test(marker);
+      const isLargeSection = rect.width >= 240 && rect.height >= 120;
+      return hasDesignMarker || (isLargeSection && text.length > 20);
+    })
+    .map((el) => summarizeDistinctiveElement(el, textOf, viewportHeight))
+    .sort((a, b) => b.score - a.score || a.position.top - b.position.top)
+    .slice(0, 12)
+    .map(({ score, ...item }) => item);
+}
+
+function summarizeDistinctiveElement(el, textOf, viewportHeight) {
+  const rect = el.getBoundingClientRect();
+  const className = stringifyClassName(el.className);
+  const childTags = Array.from(el.children)
+    .slice(0, 8)
+    .map((child) => child.tagName.toLowerCase());
+  const mediaCount = el.querySelectorAll('img,video,canvas,svg,picture').length;
+  const buttonCount = el.querySelectorAll('button,a[role="button"],[class*="btn" i],[class*="button" i]').length;
+  const heading = textOf(el.querySelector('h1,h2,h3,h4,h5,h6'), 120);
+  const kind = inferDistinctiveKind(el);
+  const area = Math.round(rect.width * rect.height);
+  const foldBoost = rect.top < viewportHeight * 1.2 ? 2 : 0;
+  const markerBoost = kind === 'section' || kind === 'content' ? 0 : 3;
+
+  return {
+    kind,
+    selectorHint: buildSelectorHint(el),
+    tag: el.tagName.toLowerCase(),
+    role: el.getAttribute('role') || '',
+    id: el.id || '',
+    className: className.split(/\s+/).slice(0, 8).join(' '),
+    heading,
+    text: textOf(el, 260),
+    position: {
+      top: Math.round(rect.top),
+      left: Math.round(rect.left),
+      width: Math.round(rect.width),
+      height: Math.round(rect.height),
+    },
+    structure: {
+      childTags,
+      mediaCount,
+      buttonCount,
+    },
+    score: area + mediaCount * 24000 + buttonCount * 12000 + markerBoost * 10000 + foldBoost * 10000,
+  };
+}
+
+function inferDistinctiveKind(el) {
+  const tag = el.tagName.toLowerCase();
+  const role = (el.getAttribute('role') || '').toLowerCase();
+  const marker = `${stringifyClassName(el.className)} ${el.id || ''}`.toLowerCase();
+
+  if (tag === 'header' || role === 'banner' || marker.includes('hero')) return 'hero/header';
+  if (tag === 'nav' || role === 'navigation' || marker.includes('nav')) return 'navigation';
+  if (tag === 'form') return 'form';
+  if (tag === 'table') return 'table/data';
+  if (marker.includes('pricing') || marker.includes('plan')) return 'pricing';
+  if (marker.includes('feature')) return 'feature';
+  if (marker.includes('testimonial')) return 'testimonial';
+  if (marker.includes('metric') || marker.includes('stats')) return 'metrics';
+  if (marker.includes('gallery')) return 'gallery/media';
+  if (marker.includes('marquee')) return 'marquee';
+  if (marker.includes('card')) return 'card';
+  if (marker.includes('panel')) return 'panel';
+  if (marker.includes('grid')) return 'grid';
+  if (marker.includes('badge')) return 'badge';
+  if (tag === 'section' || role === 'region') return 'section';
+  return 'content';
 }
 
 const CSS_EVIDENCE_LIMIT = 280;
