@@ -28,7 +28,8 @@ evaluate_script(collect_design_data.js) ──► collected.json
                                           + FIXED_2
                                     │
                                     ▼
-                                DESIGN.md
+                output/<hostname>/design.md
+                output/<hostname>/shot{1,2,3}.jpg
 ```
 
 ## 各步骤细节
@@ -129,7 +130,9 @@ formatted CSS Evidence Markdown
 FIXED_TEXT_2   (Negative Constraints + Performance)
 ```
 
-由 `assemble_design_md(...)` 完成，写入用户指定的 `--output` 路径。
+由 `assemble_design_md(...)` 完成，默认写入 `output/<hostname>/design.md`，
+并把传入的 3 张截图复制到同一目录（已在目录中的会跳过）。可用
+`--output-dir` / `--output` 自定义。
 
 ## 失败模式与排查
 | 现象 | 排查 |

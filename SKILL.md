@@ -37,24 +37,31 @@ description: This skill should be used when the user wants to extract a complete
 ## 总体工作流（5 步）
 
 ```
-URL → [chrome-devtools] 3 截图 + collected.json → [Python] CSS 压缩 + LLM 调用 + 拼装 → {hostname}_design.md
+URL → [chrome-devtools] 3 截图 + collected.json → [Python] CSS 压缩 + LLM 调用 + 拼装 →
+       output/<hostname>/{shot1,shot2,shot3}.jpg
+       output/<hostname>/design.md
 ```
 
 每一步细节见 `references/workflow.md`。chrome-devtools MCP 的精确调用配方见 `references/chrome_devtools_recipes.md`。
 
-### Step 1 — 创建临时工作目录
+### Step 1 — 创建输出目录
+
+所有截图和最终 `design.md` 都直接落到 **当前工作目录** 下的 `output/<hostname>/`。
 
 ```bash
-mkdir -p /tmp/get-web-design/<run-id>
+mkdir -p output/<hostname>
 ```
+
+`<hostname>` 即 URL 的 host（如 `https://platform.moonshot.cn/...` → `platform.moonshot.cn`）。
+`collected.json` 仍可放到 `/tmp/` 等临时位置（它是中间产物，不必随结果发布）。
 
 ### Step 2 — 用 chrome-devtools 采集
 
 按 `references/chrome_devtools_recipes.md` 顺序：
 
 1. `mcp__chrome-devtools__new_page({ url })`，必要时 `wait_for` 等首屏渲染。
-2. 依次滚到 0% / 35% / 70%，每次滚动后 ≥600ms 再 `take_screenshot`，存为 `shot1.jpg / shot2.jpg / shot3.jpg`。
-3. 读取 `assets/collect_design_data.js` 全部内容，包成 `() => { …全部代码… }` 传给 `evaluate_script`，把返回值序列化写入 `collected.json`。
+2. 依次滚到 0% / 35% / 70%，每次滚动后 ≥600ms 再 `take_screenshot`，**直接存到** `output/<hostname>/shot1.jpg`、`shot2.jpg`、`shot3.jpg`。
+3. 读取 `assets/collect_design_data.js` 全部内容，包成 `() => { …全部代码… }` 传给 `evaluate_script`，把返回值序列化写入 `collected.json`（建议放 `/tmp/get-web-design/<run-id>/collected.json`）。
 
 > 该 JS 文件最后一行是 `return collectDesignData({ includeCss: true });`，
 > 所以包装层只需要把整个文件内容塞进 `() => { ... }` 里就能得到结构化对象。
@@ -64,11 +71,13 @@ mkdir -p /tmp/get-web-design/<run-id>
 ```bash
 python3 <skill_dir>/scripts/generate_design_md.py \
   --collected /tmp/get-web-design/<run-id>/collected.json \
-  --screenshots /tmp/.../shot1.jpg /tmp/.../shot2.jpg /tmp/.../shot3.jpg \
+  --screenshots output/<hostname>/shot1.jpg output/<hostname>/shot2.jpg output/<hostname>/shot3.jpg \
   --hostname "<hostname>"
 ```
 
-`--output` 可省略，默认输出到当前目录的 `<hostname>_design.md`（如 `platform.moonshot.cn_design.md`）。如需自定义路径可加 `--output <path>`。语言默认英文（`--language en`），不建议改为 `zh`。
+默认会输出到 `output/<hostname>/design.md`，并将传入的 3 张截图归位到同一目录（已经在该目录的会跳过复制）。
+如需自定义可用 `--output-dir <dir>` 整体改目录，或 `--output <path>` 仅改 markdown 路径。
+语言默认英文（`--language en`），不建议改为 `zh`。
 
 脚本内部完成：
 - `normalize_css_evidence` —— 用 `scripts/css_evidence.py` 把 280 行 computed-style 压成高频 token；
@@ -87,7 +96,16 @@ frontmatter (hostname / version / last_updated)
 
 ### Step 4 — 校验输出
 
-打开 `./<hostname>_design.md`，确认：
+应当生成以下 4 个文件：
+
+```
+output/<hostname>/design.md
+output/<hostname>/shot1.jpg
+output/<hostname>/shot2.jpg
+output/<hostname>/shot3.jpg
+```
+
+打开 `output/<hostname>/design.md`，确认：
 - 顶部有 `---` frontmatter；
 - 包含 `# Design Thinking`、`# Overall Atmosphere`、`## Engineering CSS Evidence`、`## Core Principles` 四个段落；
 - 包含 `## Distinctive Element Few-shot Examples`，并为真实页面元素给出 purpose / evidence / visual rules / recreation prompt / structure sketch；

@@ -3,11 +3,24 @@
 本文给出从 URL 到 `collected.json + 3 张截图` 的精确调用步骤，
 所有工具均以 `mcp__chrome-devtools__*` 前缀提供。
 
+最终产物目录：
+
+```
+output/<hostname>/design.md
+output/<hostname>/shot1.jpg
+output/<hostname>/shot2.jpg
+output/<hostname>/shot3.jpg
+```
+
+`<hostname>` 即 URL 的 host（例如 `platform.moonshot.cn`）。
+
 ## 步骤 0：准备工作目录
 ```bash
-mkdir -p /tmp/get-web-design/<run-id>
+mkdir -p output/<hostname>
+mkdir -p /tmp/get-web-design/<run-id>     # 仅用于存放中间产物 collected.json
 ```
-后续所有截图与 collected.json 都落在该目录。
+- 截图直接落到 `output/<hostname>/`（最终结果之一）。
+- `collected.json` 是中间产物，放 `/tmp/...` 即可。
 
 ## 步骤 1：打开页面
 
@@ -32,7 +45,7 @@ mcp__chrome-devtools__evaluate_script({
 })
 mcp__chrome-devtools__take_screenshot({
   format: "jpeg", quality: 70,
-  filePath: "/tmp/get-web-design/<run-id>/shot1.jpg"
+  filePath: "output/<hostname>/shot1.jpg"
 })
 
 # 截图 2：35%
@@ -42,7 +55,7 @@ mcp__chrome-devtools__evaluate_script({
 # 等 ~600ms（多数 MCP 实现自带；否则插一个空 evaluate_script 占用时间）
 mcp__chrome-devtools__take_screenshot({
   format: "jpeg", quality: 70,
-  filePath: "/tmp/get-web-design/<run-id>/shot2.jpg"
+  filePath: "output/<hostname>/shot2.jpg"
 })
 
 # 截图 3：70%
@@ -51,7 +64,7 @@ mcp__chrome-devtools__evaluate_script({
 })
 mcp__chrome-devtools__take_screenshot({
   format: "jpeg", quality: 70,
-  filePath: "/tmp/get-web-design/<run-id>/shot3.jpg"
+  filePath: "output/<hostname>/shot3.jpg"
 })
 
 # 复位
@@ -89,13 +102,23 @@ mcp__chrome-devtools__evaluate_script({
 ```bash
 python3 <skill_root>/scripts/generate_design_md.py \
   --collected /tmp/get-web-design/<run-id>/collected.json \
-  --screenshots /tmp/get-web-design/<run-id>/shot1.jpg \
-                /tmp/get-web-design/<run-id>/shot2.jpg \
-                /tmp/get-web-design/<run-id>/shot3.jpg \
+  --screenshots output/<hostname>/shot1.jpg \
+                output/<hostname>/shot2.jpg \
+                output/<hostname>/shot3.jpg \
   --hostname "<hostname>"
 ```
 
-`--output` 可省略；默认在**当前工作目录**输出 `<hostname>_design.md`（例如 `platform.moonshot.cn_design.md`）。如需指定路径可加 `--output <path>`。
+默认输出目录是 **当前工作目录下的 `output/<hostname>/`**：
+
+```
+output/<hostname>/design.md
+output/<hostname>/shot1.jpg   # 截图复制/直接落盘到此处
+output/<hostname>/shot2.jpg
+output/<hostname>/shot3.jpg
+```
+
+如需自定义可加 `--output-dir <dir>` 整体改目录，或 `--output <path>` 仅改 markdown 路径。
+脚本会自动把传入的截图复制到输出目录（截图本身已在该目录时则跳过）。
 
 语言固定为英文（默认 `--language en`），请勿改为 `zh`，以确保整个 DESIGN.md 为英文。
 

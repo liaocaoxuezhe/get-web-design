@@ -70,8 +70,13 @@ curl -fsSL https://raw.githubusercontent.com/liaocaoxuezhe/get-web-design/main/i
 ```
 URL → [chrome-devtools] 3 截图 + collected.json
     → [Python] CSS 压缩 + LLM 调用 + 拼装
-    → {hostname}_design.md
+    → output/<hostname>/design.md
+      output/<hostname>/shot1.jpg
+      output/<hostname>/shot2.jpg
+      output/<hostname>/shot3.jpg
 ```
+
+每次抽取的所有产物都收敛到一个 `output/<hostname>/` 文件夹，便于归档和复用。
 
 详细步骤见 `references/workflow.md`。chrome-devtools MCP 调用配方见 `references/chrome_devtools_recipes.md`。
 

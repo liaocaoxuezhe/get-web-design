@@ -19,8 +19,16 @@ CLI:
     --collected /tmp/collected.json \\
     --screenshots shot1.png shot2.png shot3.png \\
     --hostname example.com \\
-    --output DESIGN.md \\
+    [--output-dir output/example.com] \\
+    [--output output/example.com/design.md] \\
     [--language zh|en]
+
+Default output layout:
+  output/<hostname>/design.md
+  output/<hostname>/shot1.jpg
+  output/<hostname>/shot2.jpg
+  output/<hostname>/shot3.jpg
+The script copies screenshots into the output dir if they are not already there.
 """
 
 from __future__ import annotations
@@ -31,6 +39,7 @@ import json
 import mimetypes
 import os
 import re
+import shutil
 import sys
 import urllib.error
 import urllib.request
@@ -206,8 +215,14 @@ def main() -> int:
                         help="Up to 3 screenshot image files (top / mid / lower)")
     parser.add_argument("--hostname", default="", help="Hostname; defaults to value in meta")
     parser.add_argument(
+        "--output-dir", default=None, type=Path, dest="output_dir",
+        help="Output directory. Defaults to ./output/<hostname>/. "
+             "design.md and copies of the screenshots are written here."
+    )
+    parser.add_argument(
         "--output", default=None, type=Path,
-        help="Output file path. Defaults to ./<hostname>_design.md in the current directory."
+        help="Explicit design.md path. Overrides --output-dir for the markdown only. "
+             "Defaults to <output-dir>/design.md."
     )
     parser.add_argument("--language", choices=["zh", "en"], default="en")
     parser.add_argument("--api-key", default=os.environ.get("WEB_DESIGN_API_KEY", ""))
@@ -233,8 +248,28 @@ def main() -> int:
     collected = json.loads(args.collected.read_text(encoding="utf-8"))
     hostname = args.hostname or (collected.get("meta") or {}).get("hostname") or "unknown"
 
-    output_path = args.output or Path(f"{hostname}_design.md")
+    output_dir = args.output_dir or Path("output") / hostname
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    output_path = args.output or (output_dir / "design.md")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     args.output = output_path
+
+    copied: list[Path] = []
+    for idx, shot in enumerate(args.screenshots, start=1):
+        src = shot.resolve()
+        dst = (output_dir / f"shot{idx}{shot.suffix.lower() or '.jpg'}").resolve()
+        if src == dst:
+            copied.append(dst)
+            continue
+        try:
+            shutil.copy2(src, dst)
+            copied.append(dst)
+        except OSError as e:
+            sys.stderr.write(f"[WARN] failed to copy screenshot {src} -> {dst}: {e}\n")
+    if copied:
+        print(f"[INFO] Screenshots placed in {output_dir} ({len(copied)} files)",
+              file=sys.stderr)
 
     raw_evidence = collected.get("engineeredCssEvidence") or {
         "error": "engineeredCssEvidence missing from collected data",
